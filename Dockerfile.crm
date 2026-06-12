@@ -15,6 +15,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tsconfig.json ./tsconfig.json
 EXPOSE 3001
-# Apply pending migrations, then boot the bundled server.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/apps/crm/main.js"]
+# Apply migrations; optionally seed once (set SEED_ON_BOOT=true for one deploy,
+# runs against the internal DB — no external access needed — then flip it back);
+# then boot the bundled server.
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then echo 'Seeding database...' && npx ts-node prisma/seed.ts; fi && node dist/apps/crm/main.js"]

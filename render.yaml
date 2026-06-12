@@ -49,6 +49,8 @@ services:
         sync: false # set in dashboard after first deploy
       - key: FRONTEND_ORIGIN
         sync: false # set to the Vercel URL after the frontend deploys
+      - key: SEED_ON_BOOT
+        sync: false # set "true" for ONE deploy to seed the DB, then set "false"
 
   - type: web
     name: xeno-channel
