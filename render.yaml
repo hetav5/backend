@@ -1,0 +1,72 @@
+# Render blueprint — backend (CRM + channel + Postgres + Redis), all free tier.
+# Frontend deploys separately on Vercel.
+#
+# Deploy: Render Dashboard → New → Blueprint → pick the xeno_backend repo.
+# After the first deploy, set the two `sync: false` secrets (GEMINI_API_KEY,
+# FRONTEND_ORIGIN), then trigger a redeploy. Seed the DB once (see DEPLOY.md).
+#
+# NOTE: free web services sleep after ~15 min idle (cold start ~30–50s). Open the
+# app to warm both services before a live demo.
+
+databases:
+  - name: xeno-postgres
+    plan: free
+    databaseName: xeno
+    user: xeno
+
+services:
+  - type: keyvalue # Render Key Value (Valkey; Redis-protocol compatible)
+    name: xeno-redis
+    plan: free
+    ipAllowList: [] # internal access only
+    maxmemoryPolicy: noeviction
+
+  - type: web
+    name: xeno-crm
+    runtime: docker
+    dockerfilePath: ./Dockerfile.crm
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: xeno-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: xeno-redis
+          property: connectionString
+      - key: RECEIPT_HMAC_SECRET
+        generateValue: true # generated once; shared to the channel below
+      - key: CHANNEL_SERVICE_URL
+        fromService:
+          type: web
+          name: xeno-channel
+          property: host # bare host; normalizeBaseUrl() prefixes https://
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_API_KEY
+        sync: false # set in dashboard after first deploy
+      - key: FRONTEND_ORIGIN
+        sync: false # set to the Vercel URL after the frontend deploys
+
+  - type: web
+    name: xeno-channel
+    runtime: docker
+    dockerfilePath: ./Dockerfile.channel
+    plan: free
+    envVars:
+      - key: CRM_BASE_URL
+        fromService:
+          type: web
+          name: xeno-crm
+          property: host
+      - key: RECEIPT_HMAC_SECRET
+        fromService:
+          type: web
+          name: xeno-crm
+          envVarKey: RECEIPT_HMAC_SECRET # reuse the CRM's generated secret
+      - key: CHANNEL_FAILURE_RATE
+        value: "0.08"
+      - key: CHANNEL_CONVERSION_RATE
+        value: "0.15"

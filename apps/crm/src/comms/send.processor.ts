@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { CommsService } from './comms.service';
-import { DispatchRequest } from '@shared';
+import { DispatchRequest, normalizeBaseUrl } from '@shared';
 import { SEND_QUEUE, SendJobData } from '../queue/queue.constants';
 
 /**
@@ -41,7 +41,7 @@ export class SendProcessor extends WorkerHost {
       message: comm.renderedMessage,
     };
 
-    const base = this.config.get<string>('CHANNEL_SERVICE_URL');
+    const base = normalizeBaseUrl(this.config.get<string>('CHANNEL_SERVICE_URL'));
     const res = await fetch(`${base}/dispatch`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

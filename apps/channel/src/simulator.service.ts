@@ -6,6 +6,7 @@ import {
   DispatchRequest,
   ReceiptEvent,
   signBody,
+  normalizeBaseUrl,
 } from '@shared';
 
 interface PlannedEvent {
@@ -29,7 +30,9 @@ export class SimulatorService {
   private readonly conversionRate: number;
 
   constructor(private readonly config: ConfigService) {
-    this.crmBase = this.config.get<string>('CRM_BASE_URL', 'http://localhost:3001');
+    this.crmBase = normalizeBaseUrl(
+      this.config.get<string>('CRM_BASE_URL', 'http://localhost:3001'),
+    );
     this.secret = this.config.get<string>('RECEIPT_HMAC_SECRET', '');
     this.failureRate = Number(this.config.get<string>('CHANNEL_FAILURE_RATE', '0.08'));
     this.conversionRate = Number(this.config.get<string>('CHANNEL_CONVERSION_RATE', '0.15'));
