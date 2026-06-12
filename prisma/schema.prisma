@@ -1,0 +1,151 @@
+// Xeno Mini CRM — data model
+// See BACKEND_PLAN.md for rationale. The CommunicationEvent log is the source of
+// truth; Communication.status is a projection kept order-safe by libs/shared state-rank.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Channel {
+  WHATSAPP
+  SMS
+  EMAIL
+  RCS
+}
+
+enum CampaignStatus {
+  DRAFT
+  APPROVED
+  SENDING
+  SENT
+}
+
+enum CommStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  OPENED
+  READ
+  CLICKED
+  FAILED
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  phone      String
+  attributes Json     @default("{}") // { city, tags: [] }
+  createdAt  DateTime @default(now())
+
+  orders         Order[]
+  communications Communication[]
+
+  @@index([createdAt])
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  total      Float
+  items      Json     @default("[]")
+  placedAt   DateTime
+
+  attribution OrderAttribution?
+
+  @@index([customerId])
+  @@index([placedAt])
+}
+
+model Segment {
+  id         String     @id @default(cuid())
+  name       String
+  definition Json // Rule tree (libs/shared segment.types)
+  createdAt  DateTime   @default(now())
+  campaigns  Campaign[]
+}
+
+model Campaign {
+  id        String         @id @default(cuid())
+  name      String
+  goalText  String?
+  segmentId String?
+  segment   Segment?       @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  channel   Channel
+  message   String         @default("")
+  status    CampaignStatus @default(DRAFT)
+  createdAt DateTime       @default(now())
+
+  communications Communication[]
+
+  @@index([status])
+}
+
+model Communication {
+  id              String     @id @default(cuid())
+  campaignId      String
+  campaign        Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  channel         Channel
+  renderedMessage String
+  status          CommStatus @default(QUEUED)
+  providerRef     String?
+  // per-state timestamps, e.g. { sentAt, deliveredAt, openedAt, readAt, clickedAt, failedAt }
+  timestamps      Json       @default("{}")
+  createdAt       DateTime   @default(now())
+
+  events       CommunicationEvent[]
+  attributions OrderAttribution[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+model CommunicationEvent {
+  id              String        @id @default(cuid())
+  communicationId String
+  communication   Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+  eventId         String        @unique // idempotency key from the provider
+  type            String // CommunicationEventType
+  occurredAt      DateTime
+  receivedAt      DateTime      @default(now())
+  raw             Json          @default("{}")
+
+  @@index([communicationId])
+}
+
+model OrderAttribution {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  communicationId String
+  communication   Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+  attributedAt    DateTime      @default(now())
+
+  @@index([communicationId])
+}
+
+model AgentConversation {
+  id        String         @id @default(cuid())
+  title     String         @default("New conversation")
+  createdAt DateTime       @default(now())
+  messages  AgentMessage[]
+}
+
+model AgentMessage {
+  id             String            @id @default(cuid())
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // 'user' | 'model' | 'tool'
+  parts          Json // Gemini content parts (text / functionCall / functionResponse)
+  createdAt      DateTime          @default(now())
+
+  @@index([conversationId])
+}
