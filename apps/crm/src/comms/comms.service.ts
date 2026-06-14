@@ -79,13 +79,17 @@ export class CommsService {
     });
 
     // Enqueue sends with retry/backoff (BullMQ handles the retry loop).
+    // The retry window must outlast a channel-service cold start: on free-tier
+    // hosting the channel can be spun down and take ~30-50s to wake. With
+    // exponential backoff at delay=2000ms, 6 attempts wait 2+4+8+16+32 ≈ 62s
+    // before giving up, so a waking channel doesn't fail an entire send.
     await this.sendQueue.addBulk(
       created.map((comm) => ({
         name: 'send',
         data: { communicationId: comm.id },
         opts: {
-          attempts: 4,
-          backoff: { type: 'exponential', delay: 1000 },
+          attempts: 6,
+          backoff: { type: 'exponential', delay: 2000 },
           removeOnComplete: 1000,
           removeOnFail: 1000,
         },
