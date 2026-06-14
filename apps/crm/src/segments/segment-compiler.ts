@@ -45,6 +45,11 @@ export class SegmentCompiler {
   }
 
   private node(rule: Rule): string {
+    if (!rule || typeof rule !== 'object') {
+      throw new Error(
+        `Invalid rule node. Expected a group {all|any:[...]} or a leaf {field, op, value}. Received: ${JSON.stringify(rule)}`,
+      );
+    }
     if (isGroup(rule)) {
       const join = rule.all ? ' AND ' : ' OR ';
       const children = (rule.all ?? rule.any ?? []).map((r) => this.node(r));
@@ -55,6 +60,19 @@ export class SegmentCompiler {
   }
 
   private leaf(rule: LeafRule): string {
+    if (typeof rule.field !== 'string') {
+      throw new Error(
+        `Rule leaf is missing a valid "field". Use a group ({all:[...]} or {any:[...]}), ` +
+          `or a leaf with "field" set to one of: lastOrderDaysAgo, orderCount, lifetimeValue, ` +
+          `or attributes.<key>. Received: ${JSON.stringify(rule)}`,
+      );
+    }
+    if (!rule.op) {
+      throw new Error(
+        `Rule leaf for field "${rule.field}" is missing an "op" (one of >, >=, <, <=, =, !=, in). ` +
+          `Received: ${JSON.stringify(rule)}`,
+      );
+    }
     const expr = this.fieldExpr(rule.field);
     const isAttr = rule.field.startsWith('attributes.');
 
