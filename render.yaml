@@ -46,7 +46,7 @@ services:
           name: xeno-channel
           property: host # bare host; normalizeBaseUrl() prefixes https://
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-2.5-flash-lite # higher free-tier limits than gemini-2.5-flash
       - key: GEMINI_API_KEY
         sync: false # set in dashboard after first deploy
       - key: FRONTEND_ORIGIN
