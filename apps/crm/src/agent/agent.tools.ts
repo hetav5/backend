@@ -7,9 +7,20 @@ import { FunctionDeclaration } from '@google/genai';
 const RULE_TREE_SCHEMA = {
   type: 'object',
   description:
-    'Audience rule tree. Either a group {all:[...]} (AND) / {any:[...]} (OR), or a leaf {field, op, value}. ' +
-    'Leaf fields: "lastOrderDaysAgo" (number), "orderCount" (number), "lifetimeValue" (number), or "attributes.<key>" e.g. "attributes.city". ' +
-    'Ops: ">", ">=", "<", "<=", "=", "!=", "in". Example: {"all":[{"field":"lastOrderDaysAgo","op":">","value":60},{"field":"orderCount","op":">=","value":2}]}',
+    'Audience rule tree. A node is EITHER a group OR a leaf.\n' +
+    '- Group: {"all":[...rules]} for AND, or {"any":[...rules]} for OR.\n' +
+    '- Leaf: an object with EXACTLY three keys: "field", "op", "value". ' +
+    'The field name goes in the "field" key — do NOT use the field name as an object key.\n' +
+    'Valid fields:\n' +
+    '  • "lastOrderDaysAgo" (number) — days since last order\n' +
+    '  • "orderCount" (number)\n' +
+    '  • "lifetimeValue" (number, in rupees)\n' +
+    '  • "attributes.city" (string) — one of Mumbai, Delhi, Bangalore, Pune, Hyderabad, Chennai\n' +
+    '  • "attributes.tags" (tag membership) — tags include: espresso, cold-brew, single-origin, decaf, subscriber, gifting. ' +
+    'e.g. single-origin lovers = {"field":"attributes.tags","op":"in","value":["single-origin"]}\n' +
+    'Ops: ">", ">=", "<", "<=", "=", "!=", "in" (use "in" with an array value).\n' +
+    'CORRECT example: {"all":[{"field":"lastOrderDaysAgo","op":">","value":60},{"field":"orderCount","op":">=","value":2}]}\n' +
+    'WRONG (do not do this): {"attributes.tags":{"op":"in","value":["single-origin"]}} — the field must be the "field" value, not the key.',
 };
 
 export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
@@ -96,5 +107,7 @@ The marketer describes a goal in plain language; you help them reach the right s
 5. Then call launch_campaign to surface an approval card.
 
 CRITICAL SAFETY RULE: You must NEVER send a campaign yourself. launch_campaign only requests human approval; the actual send happens only when the marketer clicks "Approve & Send". Never claim a campaign has been sent. Always show the audience size and draft copy before requesting approval.
+
+You can only segment on real data: lastOrderDaysAgo, orderCount, lifetimeValue (rupees), attributes.city, and attributes.tags (espresso, cold-brew, single-origin, decaf, subscriber, gifting). Map the marketer's intent onto these — e.g. "single-origin lovers" → tag "single-origin"; "VIPs" → high orderCount/lifetimeValue; "lapsed" → lastOrderDaysAgo. Do not invent other fields.
 
 Be concise and decisive. Prefer acting (calling tools) over asking permission for read-only steps like previewing an audience. Use the available channels: WhatsApp, SMS, Email, RCS.`;

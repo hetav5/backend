@@ -73,6 +73,14 @@ export class SegmentCompiler {
           `Received: ${JSON.stringify(rule)}`,
       );
     }
+    // attributes.tags is a JSON array — match membership, not text equality.
+    if (rule.field === 'attributes.tags') {
+      const values = (Array.isArray(rule.value) ? rule.value : [rule.value]).map(String);
+      const ph = this.bind(values);
+      // `?|` => the tags array contains ANY of the given tag strings.
+      return `(c.attributes -> 'tags') ?| ${ph}::text[]`;
+    }
+
     const expr = this.fieldExpr(rule.field);
     const isAttr = rule.field.startsWith('attributes.');
 
