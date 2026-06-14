@@ -38,6 +38,8 @@ services:
           property: connectionString
       - key: RECEIPT_HMAC_SECRET
         generateValue: true # generated once; shared to the channel below
+      - key: JWT_SECRET
+        generateValue: true # signs auth tokens
       - key: CHANNEL_SERVICE_URL
         fromService:
           type: web

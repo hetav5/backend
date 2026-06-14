@@ -13,6 +13,7 @@ import { Queue } from 'bullmq';
 import { Request } from 'express';
 import { ReceiptEvent, SIGNATURE_HEADER, verifySignature } from '@shared';
 import { RECEIPT_QUEUE, ReceiptJobData } from '../queue/queue.constants';
+import { Public } from '../auth/public.decorator';
 
 /**
  * Thin, fast webhook endpoint. Verifies the HMAC over the raw body, enqueues
@@ -26,6 +27,7 @@ export class ReceiptsController {
     @InjectQueue(RECEIPT_QUEUE) private readonly queue: Queue<ReceiptJobData>,
   ) {}
 
+  @Public()
   @Post()
   @HttpCode(200)
   async ingest(

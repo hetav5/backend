@@ -35,6 +35,15 @@ enum CommStatus {
   FAILED
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}
+
 model Customer {
   id         String   @id @default(cuid())
   name       String
