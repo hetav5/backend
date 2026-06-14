@@ -11,6 +11,7 @@ import { AgentModule } from './agent/agent.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { OrdersModule } from './orders/orders.module';
 import { AuthModule } from './auth/auth.module';
+import { InsightsModule } from './insights/insights.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { AuthModule } from './auth/auth.module';
     DashboardModule,
     OrdersModule,
     AuthModule,
+    InsightsModule,
   ],
 })
 export class AppModule {}

@@ -29,6 +29,25 @@ export class LlmService {
   }
 
   /**
+   * One-shot JSON completion (non-streaming). Forces application/json output
+   * and returns the raw text for the caller to parse. Used for analysis tasks
+   * like campaign performance reviews.
+   */
+  async completeJson(
+    systemInstruction: string,
+    prompt: string,
+  ): Promise<string> {
+    const res = await this.withRetry(() =>
+      this.ai.models.generateContent({
+        model: this.model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { systemInstruction, responseMimeType: 'application/json' },
+      }),
+    );
+    return res.text ?? '';
+  }
+
+  /**
    * Stream one model turn. Retries the request (not mid-stream) on transient
    * overload/rate-limit errors before handing back the chunk iterator.
    */
