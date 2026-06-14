@@ -44,7 +44,34 @@ export class SegmentCompiler {
     return { sql, params: c.params };
   }
 
+  /**
+   * Coerce the common malformed shapes LLMs emit into a canonical node.
+   * Notably the "field-as-key" leaf: {"attributes.tags": {op, value}} or
+   * {"orderCount": 3} -> {field, op, value}. Leaves valid nodes untouched.
+   */
+  private coerce(rule: Rule): Rule {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return rule;
+    const r = rule as Record<string, unknown>;
+    if (r.all !== undefined || r.any !== undefined) return rule; // group
+    if (typeof r.field === 'string') return rule; // canonical leaf
+
+    const keys = Object.keys(r);
+    if (keys.length === 1) {
+      const field = keys[0];
+      const v = r[field];
+      if (v && typeof v === 'object' && !Array.isArray(v) && ('op' in v || 'value' in v)) {
+        const inner = v as { op?: string; value?: unknown };
+        return { field, op: inner.op ?? '=', value: inner.value } as Rule;
+      }
+      if (v === null || typeof v !== 'object') {
+        return { field, op: '=', value: v } as Rule;
+      }
+    }
+    return rule;
+  }
+
   private node(rule: Rule): string {
+    rule = this.coerce(rule);
     if (!rule || typeof rule !== 'object') {
       throw new Error(
         `Invalid rule node. Expected a group {all|any:[...]} or a leaf {field, op, value}. Received: ${JSON.stringify(rule)}`,
