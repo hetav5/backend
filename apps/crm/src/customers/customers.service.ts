@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
 
 export interface CustomerListItem {
   id: string;
@@ -41,6 +43,47 @@ export class CustomersService {
       items,
       nextCursor: hasMore ? items[items.length - 1].id : null,
     };
+  }
+
+  /** Idempotent ingest: upsert by the unique email so re-uploads don't duplicate. */
+  async create(dto: CreateCustomerDto) {
+    const data = {
+      name: dto.name,
+      phone: dto.phone ?? '',
+      attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
+    };
+    return this.prisma.customer.upsert({
+      where: { email: dto.email },
+      update: data,
+      create: { email: dto.email, ...data },
+    });
+  }
+
+  /** Bulk ingest. Upserts each customer (chunked) and returns how many were processed. */
+  async createMany(dtos: CreateCustomerDto[]): Promise<{ count: number }> {
+    const CHUNK = 200;
+    let count = 0;
+    for (let i = 0; i < dtos.length; i += CHUNK) {
+      const slice = dtos.slice(i, i + CHUNK);
+      await this.prisma.$transaction(slice.map((dto) =>
+        this.prisma.customer.upsert({
+          where: { email: dto.email },
+          update: {
+            name: dto.name,
+            phone: dto.phone ?? '',
+            attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
+          },
+          create: {
+            email: dto.email,
+            name: dto.name,
+            phone: dto.phone ?? '',
+            attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
+          },
+        }),
+      ));
+      count += slice.length;
+    }
+    return { count };
   }
 
   async get(id: string) {

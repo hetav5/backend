@@ -8,6 +8,8 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { CommsModule } from './comms/comms.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { AgentModule } from './agent/agent.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { AgentModule } from './agent/agent.module';
     CommsModule,
     ReceiptsModule,
     AgentModule,
+    DashboardModule,
+    OrdersModule,
   ],
 })
 export class AppModule {}
