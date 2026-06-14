@@ -42,13 +42,24 @@ export class SendProcessor extends WorkerHost {
     };
 
     const base = normalizeBaseUrl(this.config.get<string>('CHANNEL_SERVICE_URL'));
-    const res = await fetch(`${base}/dispatch`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    if (!base) {
+      throw new Error(
+        'CHANNEL_SERVICE_URL is not set on the CRM — set it to the channel service URL (e.g. https://xeno-channel-xxxx.onrender.com)',
+      );
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(`${base}/dispatch`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      throw new Error(`Channel unreachable at ${base}/dispatch: ${(e as Error).message}`);
+    }
     if (!res.ok) {
-      throw new Error(`Channel /dispatch failed: ${res.status}`);
+      throw new Error(`Channel ${base}/dispatch returned ${res.status}`);
     }
   }
 
@@ -57,7 +68,7 @@ export class SendProcessor extends WorkerHost {
     const maxAttempts = job.opts.attempts ?? 1;
     if (job.attemptsMade >= maxAttempts) {
       this.logger.warn(
-        `Send permanently failed for ${job.data.communicationId} after ${job.attemptsMade} attempts`,
+        `Send permanently failed for ${job.data.communicationId} after ${job.attemptsMade} attempts: ${job.failedReason}`,
       );
       await this.comms.markFailed(job.data.communicationId);
       await this.comms.markCampaignSentIfDone(
